@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1,
+             maximum-scale=1, user-scalable=no, viewport-fit=cover"
+  >
+  <meta name="theme-color" content="#ffd21c">
+  <title>Task Gram</title>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+
+  <style>
+    :root{
+      --yellow:#ffd21c;
+      --yellow-dark:#e5ae00;
+      --text:#171717;
+      --muted:#777;
+      --white:#ffffff;
+      --shadow:0 10px 28px rgba(0,0,0,.12);
+    }
+
+    *{
+      box-sizing:border-box;
+      -webkit-tap-highlight-color:transparent;
+    }
+
+    html,body{
+      margin:0;
+      width:100%;
+      min-height:100%;
+      background:var(--yellow);
+      color:var(--text);
+      font-family:
+        Inter,Roboto,Arial,Helvetica,sans-serif;
+    }
+
+    body{
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+
+    .page{
+      min-height:100vh;
+      padding-top:
+        max(34px, env(safe-area-inset-top));
+      display:flex;
+      flex-direction:column;
+    }
+
+    .hero{
+      padding:16px 24px 28px;
+      text-align:center;
+    }
+
+    .hero-title{
+      font-size:30px;
+      line-height:1.04;
+      font-weight:950;
+      letter-spacing:-1.2px;
+    }
+
+    .hero-sub{
+      margin-top:10px;
+      font-size:13px;
+      font-weight:700;
+      opacity:.72;
+    }
+
+    .sheet{
+      flex:1;
+      background:var(--white);
+      border-radius:30px 30px 0 0;
+      padding:
+        28px 20px
+        max(36px, env(safe-area-inset-bottom))
+        20px;
+      box-shadow:0 -8px 30px rgba(0,0,0,.08);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+    }
+
+    .reward{
+      text-align:center;
+      margin-top:8px;
+    }
+
+    .reward-number{
+      font-size:48px;
+      line-height:1;
+      font-weight:950;
+      letter-spacing:-1.5px;
+    }
+
+    .reward-unit{
+      margin-top:8px;
+      font-size:14px;
+      font-weight:900;
+      color:var(--muted);
+      letter-spacing:.5px;
+    }
+
+    .watch{
+      width:min(94%,370px);
+      margin-top:46px;
+      padding:18px 18px;
+      border:0;
+      border-radius:18px;
+      background:var(--yellow);
+      color:#111;
+      font-size:17px;
+      font-weight:950;
+      box-shadow:0 7px 0 var(--yellow-dark);
+      cursor:pointer;
+    }
+
+    .watch:active{
+      transform:translateY(5px);
+      box-shadow:0 2px 0 var(--yellow-dark);
+    }
+
+    .watch:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
+
+    .status{
+      min-height:24px;
+      margin-top:20px;
+      text-align:center;
+      font-size:13px;
+      font-weight:700;
+      color:var(--muted);
+    }
+
+    .balance{
+      margin-top:auto;
+      padding-top:28px;
+      font-size:13px;
+      color:var(--muted);
+      font-weight:800;
+      text-align:center;
+    }
+
+    .toast{
+      position:fixed;
+      z-index:100;
+      left:50%;
+      bottom:24px;
+      transform:translateX(-50%);
+      background:#111;
+      color:#fff;
+      border-radius:14px;
+      padding:12px 16px;
+      font-size:13px;
+      font-weight:800;
+      display:none;
+      max-width:90vw;
+      text-align:center;
+    }
+
+    .loading{
+      position:fixed;
+      inset:0;
+      z-index:90;
+      background:rgba(255,210,28,.94);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:30px;
+    }
+
+    .loading-box{
+      font-size:20px;
+      font-weight:950;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="loading" id="loading">
+    <div class="loading-box">Task Gram</div>
+  </div>
+
+  <main class="page">
+    <header class="hero">
+      <div class="hero-title">
+        Watch ADs to earn<br>
+        GRAM rewards
+      </div>
+
+      <div class="hero-sub">
+        Watch ADs and get rewarded instantly!
+      </div>
+    </header>
+
+    <section class="sheet">
+      <div class="reward">
+        <div class="reward-number">+0.0005</div>
+        <div class="reward-unit">GRAM</div>
+      </div>
+
+      <button
+        class="watch"
+        id="watchButton"
+        type="button"
+      >
+        Watch AD to Claim📺
+      </button>
+
+      <div class="status" id="status"></div>
+
+      <div class="balance" id="balance"></div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    "use strict";
+
+    const tg = window.Telegram && window.Telegram.WebApp
+      ? window.Telegram.WebApp
+      : null;
+
+    const ADSGRAM_BLOCK_ID =
+      "__ADSGRAM_BLOCK_ID__";
+
+    let adController = null;
+    let currentAdSession = null;
+    let userBalance = null;
+
+    const $ = (id) => document.getElementById(id);
+
+    function showToast(message){
+      const el = $("toast");
+      el.textContent = message;
+      el.style.display = "block";
+
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => {
+        el.style.display = "none";
+      }, 2600);
+    }
+
+    function initTelegram(){
+      if(!tg){
+        throw new Error("This Mini App must be opened inside Telegram.");
+      }
+
+      tg.ready();
+      tg.expand();
+
+      if(tg.setHeaderColor){
+        tg.setHeaderColor("#ffd21c");
+      }
+
+      if(tg.setBackgroundColor){
+        tg.setBackgroundColor("#ffd21c");
+      }
+    }
+
+    async function api(path, options = {}){
+      if(!tg || !tg.initData){
+        throw new Error("Telegram initData is missing.");
+      }
+
+      const headers = Object.assign(
+        {
+          "Content-Type":"application/json",
+          "X-Telegram-Init-Data":tg.initData
+        },
+        options.headers || {}
+      );
+
+      const response = await fetch(path, {
+        ...options,
+        headers
+      });
+
+      const data = await response.json().catch(() => ({
+        ok:false,
+        error:"Invalid server response"
+      }));
+
+      if(!response.ok || !data.ok){
+        throw new Error(data.error || "Request failed");
+      }
+
+      return data;
+    }
+
+    async function loadUser(){
+      const data = await api("/api/me", {
+        method:"POST",
+        body:"{}"
+      });
+
+      userBalance = data.user.balance;
+      $("balance").textContent =
+        "Your Balance: " + data.user.balance + " GRAM";
+    }
+
+    async function startAdSession(){
+      const data = await api("/api/ad/session", {
+        method:"POST",
+        body:"{}"
+      });
+
+      currentAdSession = data.session_id;
+    }
+
+    async function claimReward(){
+      if(!currentAdSession){
+        throw new Error("Ad session is missing.");
+      }
+
+      const session = currentAdSession;
+      currentAdSession = null;
+
+      const data = await api("/api/ad/claim", {
+        method:"POST",
+        body:JSON.stringify({
+          session_id:session
+        })
+      });
+
+      userBalance = data.balance;
+      $("balance").textContent =
+        "Your Balance: " + data.balance + " GRAM";
+
+      return data;
+    }
+
+    async function showRewardedAd(){
+      if(
+        !window.Adsgram ||
+        !ADSGRAM_BLOCK_ID ||
+        ADSGRAM_BLOCK_ID === "__ADSGRAM_BLOCK_ID__"
+      ){
+        throw new Error(
+          "AdsGram Block ID is not configured yet."
+        );
+      }
+
+      if(!adController){
+        adController = window.Adsgram.init({
+          blockId:ADSGRAM_BLOCK_ID
+        });
+      }
+
+      await adController.show();
+    }
+
+    async function watchAd(){
+      const button = $("watchButton");
+      const status = $("status");
+
+      button.disabled = true;
+      status.textContent = "Loading ad...";
+
+      try{
+        // Create the one-time server session before showing the ad.
+        await startAdSession();
+
+        status.textContent = "Please watch the ad to the end...";
+
+        // AdsGram Rewarded resolves after the user has watched the ad
+        // to the end. If the ad errors or is skipped, it rejects.
+        await showRewardedAd();
+
+        status.textContent = "Adding your reward...";
+
+        const reward = await claimReward();
+
+        status.textContent =
+          "+" + reward.reward + " GRAM added!";
+        showToast(
+          "+" + reward.reward + " GRAM added"
+        );
+
+      }catch(error){
+        console.error(error);
+
+        // If the ad did not complete, the open session remains unclaimed
+        // and expires after 10 minutes on the server.
+        currentAdSession = null;
+
+        status.textContent =
+          error.message || "Ad unavailable.";
+        showToast(
+          error.message || "Ad was not completed."
+        );
+      }finally{
+        button.disabled = false;
+      }
+    }
+
+    async function boot(){
+      try{
+        initTelegram();
+        await loadUser();
+
+        $("watchButton")
+          .addEventListener("click", watchAd);
+
+        $("loading").style.display = "none";
+      }catch(error){
+        console.error(error);
+        $("loading").innerHTML =
+          '<div class="loading-box">' +
+          'Please open Task Gram from Telegram.' +
+          '</div>';
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>

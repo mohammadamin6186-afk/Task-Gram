@@ -1,0 +1,45 @@
+
+TASK GRAM — exact setup order
+
+1) Download/unzip the project.
+2) Copy .env.example to .env.
+3) Fill:
+   BOT_TOKEN = token from BotFather
+   BOT_USERNAME = Task_Gram_with_ads_bot
+   CHANNEL_USERNAME = task_gram_game
+   ADMIN_CHAT_ID = your numeric Telegram ID
+   WEBAPP_URL = public HTTPS URL where this project will run
+   ADSGRAM_BLOCK_ID = your AdsGram Rewarded block ID
+
+4) Install:
+   pip install -r requirements.txt
+
+5) Run:
+   python app.py
+
+6) Put the same HTTPS URL into:
+   BotFather -> your bot -> Main App -> URL
+
+7) Add the bot as an administrator to:
+   @task_gram_game
+   so membership checks can work reliably.
+
+8) Open the bot:
+   /start
+   -> join channel
+   -> check membership
+   -> send GRAM address
+   -> main menu
+
+9) Tap Earn More -> open tasks🚀.
+   The Mini App opens.
+
+10) The Watch AD button calls AdsGram Rewarded.
+    After a completed rewarded ad, the app adds 0.0005 GRAM.
+
+IMPORTANT:
+- Never paste BOT_TOKEN into index.html.
+- Never put BOT_TOKEN in a public GitHub repository.
+- ADMIN_CHAT_ID is your numeric Telegram ID.
+- The Mini App needs HTTPS.
+- AdsGram block ID is not the bot token.
